@@ -177,18 +177,79 @@ _shansh_build_diag_line() {
     echo " ${markers}"
 }
 
+# ============================== ANSI 颜色 ==============================
+_shansh_ansi_red=$'\e[31m'
+_shansh_ansi_yellow=$'\e[33m'
+_shansh_ansi_blue=$'\e[34m'
+_shansh_ansi_gray=$'\e[90m'
+_shansh_ansi_underline=$'\e[4m'
+_shansh_ansi_red_bg=$'\e[41;97m'
+_shansh_ansi_reset=$'\e[0m'
+_shansh_color_supported=1
+
+_shansh_check_color() {
+    [[ "$NO_COLOR" == "1" ]] && { _shansh_color_supported=0; return; }
+    [[ "$TERM" == "dumb" ]] && { _shansh_color_supported=0; return; }
+    [[ "$SHANSH_NO_COLOR" == "1" ]] && { _shansh_color_supported=0; return; }
+    _shansh_color_supported=1
+}
+
+_shansh_color() {
+    [[ $_shansh_color_supported -eq 0 ]] && { echo -n "$1"; return; }
+    echo -n "$2$1${_shansh_ansi_reset}"
+}
+
 # ============================== UI 辅助函数 ==============================
 _shansh_source_label() {
     case "$1" in
-        nl2cmd)    echo "🤖 AI" ;;
-        rules)     echo "📋 规则" ;;
-        distro)    echo "🔧 适配" ;;
-        mock)      echo "📦 内置" ;;
-        workflow)  echo "🔮 预测" ;;
-        completion) echo "⌨ 补全" ;;
-        correction) echo "✏ 纠错" ;;
-        *)         echo "🖥" ;;
+        nl2cmd)    echo "AI" ;;
+        rules)     echo "规则" ;;
+        distro)    echo "适配" ;;
+        mock)      echo "内置" ;;
+        workflow)  echo "预测" ;;
+        completion) echo "补全" ;;
+        correction) echo "纠错" ;;
+        *)         echo "" ;;
     esac
+}
+
+_shansh_render_colored_buffer() {
+    local buffer="$1"
+    local result=""
+    local i diag s e sev
+    local -a colors
+    for ((i=0; i<${#buffer}; i++)); do
+        colors[$i]=""
+    done
+
+    for diag in "${_SHANSH_DIAGS[@]}"; do
+        s="${diag%%:*}"
+        local rest="${diag#*:}"
+        e="${rest%%:*}"
+        rest="${rest#*:}"
+        sev="${rest%%:*}"
+        local ansi="${_shansh_ansi_red}"
+        [[ "$sev" == "warning" ]] && ansi="${_shansh_ansi_yellow}"
+        [[ "$sev" == "info" ]] && ansi="${_shansh_ansi_blue}"
+        for ((j=s; j<e && j<${#buffer}; j++)); do
+            colors[$j]="$ansi${_shansh_ansi_underline}"
+        done
+    done
+
+    if [[ $_shansh_color_supported -eq 0 ]]; then
+        echo -n "$buffer"
+        return
+    fi
+
+    for ((i=0; i<${#buffer}; i++)); do
+        local ch="${buffer:$i:1}"
+        if [[ -n "${colors[$i]}" ]]; then
+            echo -n "${colors[$i]}$ch"
+        else
+            echo -n "$ch"
+        fi
+    done
+    echo -n "${_shansh_ansi_reset}"
 }
 
 _shansh_build_suggest_line() {
@@ -203,28 +264,45 @@ _shansh_build_suggest_line() {
     fi
 
     case "$risk" in
-        high)   risk_label=" ⚠高风险" ;;
-        medium) risk_label=" ⚡中风险" ;;
+        high)   risk_label=" HIGH RISK" ;;
+        medium) risk_label=" MED RISK" ;;
     esac
 
-    if [[ -n "$conf_str" ]]; then
-        suggest_line="[ShanShell] ${src_label} ${conf_str} → ${replacement}"
+    if [[ -n "$src_label" ]]; then
+        suggest_line="[ShanShell] [${src_label}]"
     else
-        suggest_line="[ShanShell] ${src_label} → ${replacement}"
+        suggest_line="[ShanShell]"
     fi
+    [[ -n "$conf_str" ]] && suggest_line+=" ${conf_str}"
+    suggest_line+=" → ${replacement}"
     [[ -n "$explanation" ]] && suggest_line+=" | ${explanation}"
     if [[ ${count:-0} -gt 1 ]]; then
-        if [[ -n "$conf_str" ]]; then
-            suggest_line="[ShanShell] [1/${count}] ${src_label} ${conf_str} → ${replacement}"
+        if [[ -n "$src_label" ]]; then
+            suggest_line="[ShanShell] [1/${count}] [${src_label}]"
         else
-            suggest_line="[ShanShell] [1/${count}] ${src_label} → ${replacement}"
+            suggest_line="[ShanShell] [1/${count}]"
         fi
+        [[ -n "$conf_str" ]] && suggest_line+=" ${conf_str}"
+        suggest_line+=" → ${replacement}"
         [[ -n "$explanation" ]] && suggest_line+=" | ${explanation}"
     fi
     [[ -n "$risk_label" ]] && suggest_line+="${risk_label}"
 
     echo "$suggest_line"
 }
+_shansh_emit_diagnostics() {
+    local buffer="$1"
+    if [[ ${#_SHANSH_DIAGS[@]} -eq 0 ]]; then
+        return
+    fi
+    if [[ $_shansh_color_supported -eq 1 ]]; then
+        echo ""
+        _shansh_render_colored_buffer "$buffer"
+        echo ""
+    fi
+    echo "$(_shansh_build_diag_line "$buffer")"
+}
+
 shansh-suggest() {
     local buffer="$BUFFER"
     local cwd="$PWD"
@@ -268,28 +346,13 @@ shansh-suggest() {
     _shansh_parse_candidates "$output"
     _shansh_parse_diagnostics "$output"
 
-    local diag_line=""
-    if [[ ${#_SHANSH_DIAGS[@]} -gt 0 ]]; then
-        diag_line=$(_shansh_build_diag_line "$buffer")
-        SHANSH_LAST_DIAG_LINE="$diag_line"
-    else
-        SHANSH_LAST_DIAG_LINE=""
-    fi
-
-    local risk_label=""
-    case "$risk" in
-        high)   risk_label="⚠ 高风险" ;;
-        medium) risk_label="⚡ 中风险" ;;
-    esac
+    SHANSH_LAST_DIAG_LINE="$(_shansh_build_diag_line "$buffer")"
 
     local suggest_line
     suggest_line=$(_shansh_build_suggest_line "$replacement" "$explanation" "$source" "$confidence" "$risk" "$_SHANSH_CANDIDATE_COUNT")
 
-    if [[ -n "$diag_line" ]]; then
-        zle -M "${suggest_line}"$'\n'"${diag_line}"
-    else
-        zle -M "${suggest_line}"
-    fi
+    _shansh_emit_diagnostics "$buffer"
+    zle -M "$suggest_line"
 }
 
 # ============================== 接受建议 ==============================
@@ -365,16 +428,24 @@ shansh-accept-line() {
     ansi_warning="${_shansh_parsed_ANSI_WARNING:-}"
 
     if [[ "$risk" == "high" ]]; then
-        if [[ -n "$ansi_warning" ]]; then
-            echo -e "\n${ansi_warning}"
+        echo ""
+        if [[ $_shansh_color_supported -eq 1 ]]; then
+            echo -e "${_shansh_ansi_red_bg} HIGH RISK: ${explanation} ${_shansh_ansi_reset}"
+        else
+            echo "HIGH RISK: ${explanation}"
         fi
-        zle -M "[ShanShell] ⚠ 高风险命令已拦截: ${explanation}"
+        zle -M "[ShanShell] 高风险命令已拦截: ${explanation}"
         zle send-break
         return 1
     fi
 
     if [[ "$risk" == "medium" ]]; then
-        zle -M "[ShanShell] ⚡ 中风险提示: ${explanation} (已放行)"
+        if [[ $_shansh_color_supported -eq 1 ]]; then
+            echo -e "  ${_shansh_ansi_yellow}MEDIUM RISK: ${explanation}${_shansh_ansi_reset}"
+        else
+            echo "  MEDIUM RISK: ${explanation}"
+        fi
+        zle -M "[ShanShell] 中风险提示: ${explanation} (已放行)"
     fi
 
     _shansh_record_history "$buffer" 0
@@ -550,4 +621,5 @@ bindkey '^[' shansh-clear
 
 # ============================== 加载提示 ==============================
 _shansh_llm_fifo_reopen
+_shansh_check_color
 echo "[ShanShell] loaded. Ctrl-G suggest, Ctrl-T auto, Tab accept, Shift+Tab next, Esc clear, Enter risk-check."
