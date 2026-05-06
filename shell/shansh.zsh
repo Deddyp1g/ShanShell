@@ -215,41 +215,46 @@ _shansh_source_label() {
 
 _shansh_render_colored_buffer() {
     local buffer="$1"
-    local result=""
-    local i diag s e sev
-    local -a colors
-    for ((i=0; i<${#buffer}; i++)); do
-        colors[$i]=""
-    done
-
-    for diag in "${_SHANSH_DIAGS[@]}"; do
-        s="${diag%%:*}"
-        local rest="${diag#*:}"
-        e="${rest%%:*}"
-        rest="${rest#*:}"
-        sev="${rest%%:*}"
-        local ansi="${_shansh_ansi_red}"
-        [[ "$sev" == "warning" ]] && ansi="${_shansh_ansi_yellow}"
-        [[ "$sev" == "info" ]] && ansi="${_shansh_ansi_blue}"
-        for ((j=s; j<e && j<${#buffer}; j++)); do
-            colors[$j]="$ansi${_shansh_ansi_underline}"
-        done
-    done
+    local len=${#buffer}
+    local i j
 
     if [[ $_shansh_color_supported -eq 0 ]]; then
         echo -n "$buffer"
         return
     fi
 
-    for ((i=0; i<${#buffer}; i++)); do
-        local ch="${buffer:$i:1}"
-        if [[ -n "${colors[$i]}" ]]; then
-            echo -n "${colors[$i]}$ch"
-        else
-            echo -n "$ch"
-        fi
+    local markers=""
+    for ((i=0; i<len; i++)); do markers+="."; done
+
+    for diag in "${_SHANSH_DIAGS[@]}"; do
+        local s="${diag%%:*}"
+        local rest="${diag#*:}"
+        local e="${rest%%:*}"
+        rest="${rest#*:}"
+        local sev="${rest%%:*}"
+        local m="R"
+        [[ "$sev" == "warning" ]] && m="Y"
+        [[ "$sev" == "info" ]] && m="B"
+        for ((j=s; j<e && j<len; j++)); do
+            markers="${markers:0:$j}${m}${markers:$((j+1))}"
+        done
     done
-    echo -n "${_shansh_ansi_reset}"
+
+    local cur_style=""
+    for ((i=0; i<len; i++)); do
+        local m="${markers:$i:1}"
+        local style=""
+        [[ "$m" == "R" ]] && style="${_shansh_ansi_red}${_shansh_ansi_underline}"
+        [[ "$m" == "Y" ]] && style="${_shansh_ansi_yellow}${_shansh_ansi_underline}"
+        [[ "$m" == "B" ]] && style="${_shansh_ansi_blue}${_shansh_ansi_underline}"
+        if [[ "$cur_style" != "$style" ]]; then
+            [[ -n "$cur_style" ]] && echo -n "${_shansh_ansi_reset}"
+            [[ -n "$style" ]] && echo -n "$style"
+            cur_style="$style"
+        fi
+        echo -n "${buffer:$i:1}"
+    done
+    [[ -n "$cur_style" ]] && echo -n "${_shansh_ansi_reset}"
 }
 
 _shansh_build_suggest_line() {
