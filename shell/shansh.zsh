@@ -66,7 +66,7 @@ _shansh_llm_on_result() {
     [[ -z "$output" ]] && { _shansh_llm_fifo_reopen; return; }
     : > "$SHANSH_LLM_RESULT_FILE"
 
-    local parsed mode replacement explanation risk
+    local parsed mode replacement explanation risk source confidence
     parsed=$(_shansh_parse_kv <<< "$output")
     eval "$parsed"
 
@@ -74,6 +74,8 @@ _shansh_llm_on_result() {
     replacement="${_shansh_parsed_REPLACEMENT:-}"
     explanation="${_shansh_parsed_EXPLANATION:-}"
     risk="${_shansh_parsed_RISK:-low}"
+    source="${_shansh_parsed_SOURCE:-nl2cmd}"
+    confidence="${_shansh_parsed_CONFIDENCE:-0.0}"
 
     if [[ "$mode" != "none" && -n "$replacement" ]]; then
         SHANSH_LAST_REPLACEMENT="$replacement"
@@ -82,17 +84,9 @@ _shansh_llm_on_result() {
         SHANSH_CANDIDATE_INDEX=0
         _shansh_parse_candidates "$output"
 
-        local risk_label=""
-        case "$risk" in
-            high)   risk_label="⚠ 高风险" ;;
-            medium) risk_label="⚡ 中风险" ;;
-        esac
-
-        if [[ $_SHANSH_CANDIDATE_COUNT -gt 1 ]]; then
-            zle -M "[ShanShell] [1/${_SHANSH_CANDIDATE_COUNT}] → ${replacement} | ${explanation}${risk_label:+ ${risk_label}}"
-        else
-            zle -M "[ShanShell] → ${replacement} | ${explanation}${risk_label:+ ${risk_label}}"
-        fi
+        local suggest_line
+        suggest_line=$(_shansh_build_suggest_line "$replacement" "$explanation" "$source" "$confidence" "$risk" "$_SHANSH_CANDIDATE_COUNT")
+        zle -M "$suggest_line"
     fi
 
     _shansh_llm_fifo_reopen
@@ -183,7 +177,54 @@ _shansh_build_diag_line() {
     echo " ${markers}"
 }
 
-# ============================== 建议请求 ==============================
+# ============================== UI 辅助函数 ==============================
+_shansh_source_label() {
+    case "$1" in
+        nl2cmd)    echo "🤖 AI" ;;
+        rules)     echo "📋 规则" ;;
+        distro)    echo "🔧 适配" ;;
+        mock)      echo "📦 内置" ;;
+        workflow)  echo "🔮 预测" ;;
+        completion) echo "⌨ 补全" ;;
+        correction) echo "✏ 纠错" ;;
+        *)         echo "🖥" ;;
+    esac
+}
+
+_shansh_build_suggest_line() {
+    local replacement="$1" explanation="$2" source="$3" confidence="$4" risk="$5" count="$6"
+    local src_label conf_str risk_label suggest_line
+
+    src_label=$(_shansh_source_label "$source")
+    if [[ -n "$confidence" && "$confidence" != "0.0" ]]; then
+        conf_str="$(printf '%.0f' "$(echo "$confidence * 100" | bc -l 2>/dev/null || echo 0)")%"
+    else
+        conf_str=""
+    fi
+
+    case "$risk" in
+        high)   risk_label=" ⚠高风险" ;;
+        medium) risk_label=" ⚡中风险" ;;
+    esac
+
+    if [[ -n "$conf_str" ]]; then
+        suggest_line="[ShanShell] ${src_label} ${conf_str} → ${replacement}"
+    else
+        suggest_line="[ShanShell] ${src_label} → ${replacement}"
+    fi
+    [[ -n "$explanation" ]] && suggest_line+=" | ${explanation}"
+    if [[ ${count:-0} -gt 1 ]]; then
+        if [[ -n "$conf_str" ]]; then
+            suggest_line="[ShanShell] [1/${count}] ${src_label} ${conf_str} → ${replacement}"
+        else
+            suggest_line="[ShanShell] [1/${count}] ${src_label} → ${replacement}"
+        fi
+        [[ -n "$explanation" ]] && suggest_line+=" | ${explanation}"
+    fi
+    [[ -n "$risk_label" ]] && suggest_line+="${risk_label}"
+
+    echo "$suggest_line"
+}
 shansh-suggest() {
     local buffer="$BUFFER"
     local cwd="$PWD"
@@ -242,12 +283,7 @@ shansh-suggest() {
     esac
 
     local suggest_line
-    if [[ $_SHANSH_CANDIDATE_COUNT -gt 1 ]]; then
-        suggest_line="[ShanShell] [1/${_SHANSH_CANDIDATE_COUNT}] → ${replacement} | ${explanation}"
-    else
-        suggest_line="[ShanShell] → ${replacement} | ${explanation}"
-    fi
-    [[ -n "$risk_label" ]] && suggest_line+=" ${risk_label}"
+    suggest_line=$(_shansh_build_suggest_line "$replacement" "$explanation" "$source" "$confidence" "$risk" "$_SHANSH_CANDIDATE_COUNT")
 
     if [[ -n "$diag_line" ]]; then
         zle -M "${suggest_line}"$'\n'"${diag_line}"
@@ -410,13 +446,15 @@ _shansh_auto_suggest_on_insert() {
     local output
     output=$(cd "${SHANSH_ROOT}" && python3 -m shansh.cli suggest-rules-shell --buffer "$BUFFER" --cwd "$PWD" 2>/dev/null) || return
 
-    local parsed mode replacement explanation
+    local parsed mode replacement explanation source confidence
     parsed=$(_shansh_parse_kv <<< "$output")
     eval "$parsed"
 
     mode="${_shansh_parsed_MODE:-none}"
     replacement="${_shansh_parsed_REPLACEMENT:-}"
     explanation="${_shansh_parsed_EXPLANATION:-}"
+    source="${_shansh_parsed_SOURCE:-rules}"
+    confidence="${_shansh_parsed_CONFIDENCE:-0.0}"
 
     if [[ "$mode" != "none" && -n "$replacement" ]]; then
         _shansh_kill_llm_bg
@@ -425,16 +463,10 @@ _shansh_auto_suggest_on_insert() {
         SHANSH_LAST_EXPLANATION="$explanation"
         SHANSH_CANDIDATE_INDEX=0
         _shansh_parse_candidates "$output"
-        local risk_label=""
-        case "${_shansh_parsed_RISK:-low}" in
-            high)   risk_label="⚠ 高风险" ;;
-            medium) risk_label="⚡ 中风险" ;;
-        esac
-        if [[ $_SHANSH_CANDIDATE_COUNT -gt 1 ]]; then
-            zle -M "[ShanShell] [1/${_SHANSH_CANDIDATE_COUNT}] → ${replacement} | ${explanation}${risk_label:+ ${risk_label}}"
-        else
-            zle -M "[ShanShell] → ${replacement} | ${explanation}${risk_label:+ ${risk_label}}"
-        fi
+        local risk="${_shansh_parsed_RISK:-low}"
+        local suggest_line
+        suggest_line=$(_shansh_build_suggest_line "$replacement" "$explanation" "$source" "$confidence" "$risk" "$_SHANSH_CANDIDATE_COUNT")
+        zle -M "$suggest_line"
         return
     fi
 
@@ -462,13 +494,15 @@ _shansh_auto_suggest_on_delete() {
     local output
     output=$(cd "${SHANSH_ROOT}" && python3 -m shansh.cli suggest-rules-shell --buffer "$BUFFER" --cwd "$PWD" 2>/dev/null) || return
 
-    local parsed mode replacement explanation
+    local parsed mode replacement explanation source confidence
     parsed=$(_shansh_parse_kv <<< "$output")
     eval "$parsed"
 
     mode="${_shansh_parsed_MODE:-none}"
     replacement="${_shansh_parsed_REPLACEMENT:-}"
     explanation="${_shansh_parsed_EXPLANATION:-}"
+    source="${_shansh_parsed_SOURCE:-rules}"
+    confidence="${_shansh_parsed_CONFIDENCE:-0.0}"
 
     if [[ "$mode" != "none" && -n "$replacement" ]]; then
         _shansh_kill_llm_bg
@@ -477,16 +511,10 @@ _shansh_auto_suggest_on_delete() {
         SHANSH_LAST_EXPLANATION="$explanation"
         SHANSH_CANDIDATE_INDEX=0
         _shansh_parse_candidates "$output"
-        local risk_label=""
-        case "${_shansh_parsed_RISK:-low}" in
-            high)   risk_label="⚠ 高风险" ;;
-            medium) risk_label="⚡ 中风险" ;;
-        esac
-        if [[ $_SHANSH_CANDIDATE_COUNT -gt 1 ]]; then
-            zle -M "[ShanShell] [1/${_SHANSH_CANDIDATE_COUNT}] → ${replacement} | ${explanation}${risk_label:+ ${risk_label}}"
-        else
-            zle -M "[ShanShell] → ${replacement} | ${explanation}${risk_label:+ ${risk_label}}"
-        fi
+        local risk="${_shansh_parsed_RISK:-low}"
+        local suggest_line
+        suggest_line=$(_shansh_build_suggest_line "$replacement" "$explanation" "$source" "$confidence" "$risk" "$_SHANSH_CANDIDATE_COUNT")
+        zle -M "$suggest_line"
         return
     fi
 

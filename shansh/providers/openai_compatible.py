@@ -51,6 +51,30 @@ class OpenAICompatibleProvider(LLMProvider):
             os_info = context.get("os_info", {})
             if os_info:
                 user_prompt += f"操作系统: {os_info.get('pretty_name', '')}\n"
+            last_commands = context.get("last_commands", [])
+            if last_commands:
+                recent = [c for c in last_commands if c.strip()][-5:]
+                if recent:
+                    user_prompt += f"最近执行的历史命令 (按时间从旧到新):\n"
+                    for i, cmd in enumerate(recent):
+                        user_prompt += f"  [{i+1}] {cmd}\n"
+            files = context.get("files", [])
+            if files:
+                user_prompt += f"当前目录文件 (前20个): {', '.join(files[:20])}\n"
+            project_types = context.get("project_types", [])
+            if project_types:
+                user_prompt += f"项目类型: {', '.join(project_types)}\n"
+            git_info = context.get("git_info", {})
+            if git_info and git_info.get("is_repo"):
+                user_prompt += f"Git 分支: {git_info.get('branch', '')}\n"
+                modified = git_info.get("modified_files", [])
+                staged = git_info.get("staged_files", [])
+                if staged:
+                    user_prompt += f"Git 已暂存: {', '.join(staged[:10])}\n"
+                if modified:
+                    user_prompt += f"Git 已修改: {', '.join(modified[:10])}\n"
+
+        user_prompt += "\n请结合上述历史和上下文，生成最合适的 shell 命令。"
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -61,7 +85,7 @@ class OpenAICompatibleProvider(LLMProvider):
             "model": self.model,
             "messages": messages,
             "temperature": 0.0,
-            "max_tokens": 256,
+            "max_tokens": 384,
             "stream": False,
             "thinking": {"type": "disabled"},
         }
