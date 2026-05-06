@@ -1,0 +1,26 @@
+{
+  "aliases": {
+    "git st": "git status",
+    "git br": "git branch",
+    "git co": "git checkout",
+    "git sw": "git switch",
+    "git cm": "git commit",
+    "git ps": "git push",
+    "git pl": "git pull",
+    "git df": "git diff",
+    "git lg": "git log --oneline --graph --all",
+    "sys": "systemctl",
+    "apt": "sudo dnf",
+    "apt-get": "sudo dnf",
+    "pip": "pip3"
+  },
+  "prefix_matches": {
+    "git sta": "git status",
+    "git bra": "git branch",
+    "git che": "git checkout",
+    "git com": "git commit",
+    "syste": "systemctl",
+    "dock": "docker",
+    "kube": "kubectl"
+  }
+}

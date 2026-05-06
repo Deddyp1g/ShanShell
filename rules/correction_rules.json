@@ -1,0 +1,36 @@
+{
+  "corrections": {
+    "gti": "git",
+    "gitt": "git",
+    "igt": "git",
+    "pyhton": "python",
+    "pytho": "python",
+    "dcoker": "docker",
+    "dockr": "docker",
+    "dcoekr": "docker",
+    "systmctl": "systemctl",
+    "systemclt": "systemctl",
+    "kublet": "kubectl",
+    "kubect": "kubectl",
+    "kubeclt": "kubectl",
+    "mikdir": "mkdir",
+    "mkidr": "mkdir",
+    "ehco": "echo",
+    "ehco": "echo",
+    "sl": "ls",
+    "grpe": "grep",
+    "gpre": "grep",
+    "hsitory": "history",
+    "histroy": "history"
+  },
+  "common_commands": [
+    "git", "docker", "python", "python3", "pip", "pip3",
+    "systemctl", "journalctl", "kubectl", "ssh", "scp",
+    "ls", "cd", "mkdir", "rm", "cp", "mv", "cat", "echo",
+    "grep", "find", "sed", "awk", "curl", "wget", "tar",
+    "gzip", "chmod", "chown", "ps", "kill", "top", "df",
+    "du", "free", "mount", "sudo", "dnf", "yum", "apt",
+    "npm", "node", "cargo", "rustc", "go", "make", "gcc",
+    "vim", "nano", "tmux", "screen", "systemd"
+  ]
+}

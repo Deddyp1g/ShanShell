@@ -1,0 +1,25 @@
+{
+  "openEuler": {
+    "package_manager": "dnf",
+    "apt": "sudo dnf",
+    "apt-get": "sudo dnf",
+    "apt install": "sudo dnf install",
+    "apt remove": "sudo dnf remove",
+    "apt update": "sudo dnf check-update",
+    "apt upgrade": "sudo dnf upgrade",
+    "apt search": "dnf search",
+    "apt list": "dnf list",
+    "apt show": "dnf info",
+    "apt autoremove": "sudo dnf autoremove"
+  },
+  "Ubuntu": {
+    "package_manager": "apt",
+    "dnf": "sudo apt",
+    "dnf install": "sudo apt install"
+  },
+  "Arch": {
+    "package_manager": "pacman",
+    "apt install": "sudo pacman -S",
+    "dnf install": "sudo pacman -S"
+  }
+}

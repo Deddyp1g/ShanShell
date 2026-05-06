@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ShanShell user data (never commit)
+.shansh/
+shansh_history.json
+
+# User config (may contain API keys - never commit)
+~/.config/shansh/config.json
+
+# Temporary files
+/tmp/shansh_*.txt

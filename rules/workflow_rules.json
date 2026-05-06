@@ -1,0 +1,19 @@
+{
+  "patterns": {
+    "git add .": "git commit -m \"\"",
+    "git add -A": "git commit -m \"\"",
+    "git commit": "git push",
+    "python -m venv": "source .venv/bin/activate",
+    "python3 -m venv": "source .venv/bin/activate",
+    "mkdir": "cd",
+    "cd .venv && source": "pip install -r requirements.txt",
+    "pip install -r requirements.txt": "python main.py"
+  },
+  "sequences": [
+    ["git add .", "git commit -m \"update\"", "git push"],
+    ["python -m venv .venv", "source .venv/bin/activate", "pip install -r requirements.txt"],
+    ["mkdir myproject", "cd myproject", "git init"],
+    ["dnf update", "dnf upgrade"],
+    ["docker build -t", "docker run"]
+  ]
+}

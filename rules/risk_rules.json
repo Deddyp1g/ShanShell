@@ -1,0 +1,79 @@
+{
+  "patterns": [
+    {
+      "pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*f?|-rf)\\s+/",
+      "level": "critical",
+      "reason": "删除根目录 \"rm -rf /\" 将导致系统不可恢复"
+    },
+    {
+      "pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*f?|-rf)\\s+/\\*",
+      "level": "critical",
+      "reason": "删除根目录下所有文件 \"rm -rf /*\" 将导致系统不可恢复"
+    },
+    {
+      "pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*f?|-rf)\\s+~",
+      "level": "high",
+      "reason": "递归删除用户主目录将导致数据丢失"
+    },
+    {
+      "pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*f?|-rf)\\s+/etc",
+      "level": "critical",
+      "reason": "删除 /etc 目录将使系统无法正常运行"
+    },
+    {
+      "pattern": "rm\\s+(-[a-zA-Z]*r[a-zA-Z]*f?|-rf)\\s+/boot",
+      "level": "critical",
+      "reason": "删除 /boot 目录将使系统无法启动"
+    },
+    {
+      "pattern": ":\\s*\\(\\)\\s*\\{\\s*:\\s*\\|\\s*:\\s*&\\s*\\}\\s*;\\s*:",
+      "level": "critical",
+      "reason": "Fork Bomb，将耗尽系统资源导致系统崩溃"
+    },
+    {
+      "pattern": "chmod\\s+(-[a-zA-Z]*R[a-zA-Z]*|-[a-zA-Z]*r[a-zA-Z]*)\\s+777\\s+/",
+      "level": "high",
+      "reason": "递归修改根目录权限为 777 将导致严重安全风险"
+    },
+    {
+      "pattern": "chown\\s+(-[a-zA-Z]*R[a-zA-Z]*|-[a-zA-Z]*r[a-zA-Z]*)\\s+.*\\s+/",
+      "level": "high",
+      "reason": "递归修改根目录所有者可能导致系统异常"
+    },
+    {
+      "pattern": "dd\\s+if=.*\\s+of=/dev/sd[a-z]",
+      "level": "critical",
+      "reason": "直接写入块设备将覆盖磁盘数据"
+    },
+    {
+      "pattern": "mkfs\\.\\S+\\s+/dev/sd[a-z]",
+      "level": "critical",
+      "reason": "格式化磁盘将导致数据永久丢失"
+    },
+    {
+      "pattern": ">\\s*/dev/sda",
+      "level": "critical",
+      "reason": "重定向写入磁盘设备将覆盖分区表"
+    },
+    {
+      "pattern": "shutdown\\s+(-h|now|-r)\\s+now",
+      "level": "warning",
+      "reason": "立即关机/重启将中断所有正在运行的服务"
+    },
+    {
+      "pattern": "reboot",
+      "level": "warning",
+      "reason": "重启将中断所有正在运行的服务"
+    },
+    {
+      "pattern": "init\\s+[06]",
+      "level": "warning",
+      "reason": "切换运行级别将影响系统状态"
+    },
+    {
+      "pattern": "iptables\\s+-F",
+      "level": "high",
+      "reason": "清空 iptables 规则将移除防火墙保护"
+    }
+  ]
+}
