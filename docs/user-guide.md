@@ -65,7 +65,7 @@ ShanShell AI 是你的**终端智能助手**，嵌入在你每天都在用的 Zs
 ### 第 1 步：进入项目目录
 
 ```bash
-cd shansh-ai
+cd ShanShell
 ```
 
 ### 第 2 步：运行安装脚本
@@ -460,13 +460,13 @@ echo $ZSH_VERSION          # 应该有输出如 5.9
 type shansh-suggest       # 应该显示它是一个函数
 
 # ③ 如果没加载
-source shansh-ai/shell/shansh.zsh
+source ShanShell/shell/shansh.zsh
 ```
 
 ### Q2：想卸载 ShanShell？
 
 ```bash
-bash shansh-ai/uninstall.sh
+bash ShanShell/uninstall.sh
 ```
 
 只会删除 `~/.zshrc` 里的 ShanShell 配置块，不会动你的代码。
@@ -488,7 +488,7 @@ bash shansh-ai/uninstall.sh
 ### Q5：怎么确认一切正常？
 
 ```bash
-bash shansh-ai/tests/manual_check.sh
+bash ShanShell/tests/manual_check.sh
 ```
 
 输出 16/16 全部通过就说明一切正常。

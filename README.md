@@ -56,8 +56,8 @@ $ rm -rf /                       按 Tab → 命令自动纠错
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/Deddyp1g/shansh-ai.git
-cd shansh-ai
+git clone https://github.com/Deddyp1g/ShanShell.git
+cd ShanShell
 
 # 2. 一键安装
 bash install.sh
@@ -71,8 +71,8 @@ exec zsh
 ### 卸载
 
 ```bash
-bash shansh-ai/uninstall.sh
-# 彻底删除: rm -rf shansh-ai ~/.config/shansh
+bash ShanShell/uninstall.sh
+# 彻底删除: rm -rf ShanShell ~/.config/shansh
 ```
 
 ## 使用方法
@@ -132,7 +132,7 @@ bash tests/manual_check.sh
 ## 项目结构
 
 ```
-shansh-ai/
+ShanShell/
 ├── shell/shansh.zsh          # Zsh ZLE 前端 (widgets + 按键绑定)
 ├── shansh/                   # Python 后端
 │   ├── cli.py                 # CLI 入口

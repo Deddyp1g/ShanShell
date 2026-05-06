@@ -5,7 +5,7 @@
 ## 一、CLI 测试
 
 ```bash
-cd shansh-ai
+cd ShanShell
 
 # 健康检查
 python3 -m shansh.cli doctor
@@ -75,7 +75,7 @@ python3 -m shansh.cli risk-shell --cmd "ls -la"
 ## 三、Zsh 交互测试
 
 ```bash
-cd shansh-ai
+cd ShanShell
 zsh
 source shell/shansh.zsh
 
@@ -146,7 +146,7 @@ python3 -m shansh.cli config set llm.mode rules_only
 ## 五、单元测试
 
 ```bash
-cd shansh-ai
+cd ShanShell
 python3 -m unittest discover -s tests
 ```
 

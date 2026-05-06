@@ -5,7 +5,7 @@
 ## 环境准备
 
 ```bash
-cd shansh-ai
+cd ShanShell
 bash install.sh
 ```
 
