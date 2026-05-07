@@ -1,7 +1,6 @@
 """ShanShell AI 使用统计与历史记录模块。
 
-历史文件: ~/.shansh/history.json
-格式: [{"cmd": "...", "exit_code": 0, "cwd": "...", "ts": 1234567890.0}, ...]
+历史文件: ~/.shansh/history_<PID>.json (每终端独立，关闭终端自动删除)
 """
 
 import os
@@ -11,8 +10,14 @@ from collections import Counter
 
 
 HISTORY_DIR = os.path.expanduser("~/.shansh")
-HISTORY_FILE = os.path.join(HISTORY_DIR, "history.json")
 MAX_HISTORY = 2000
+
+
+def _history_file() -> str:
+    pid = os.environ.get("SHANSH_PID", "")
+    if pid:
+        return os.path.join(HISTORY_DIR, f"history_{pid}.json")
+    return os.path.join(HISTORY_DIR, "history.json")
 
 
 def _ensure_dir():
@@ -22,7 +27,7 @@ def _ensure_dir():
 def _load_history() -> list:
     _ensure_dir()
     try:
-        with open(HISTORY_FILE) as f:
+        with open(_history_file()) as f:
             data = json.load(f)
             if isinstance(data, list):
                 return data
@@ -33,7 +38,7 @@ def _load_history() -> list:
 
 def _save_history(history: list):
     _ensure_dir()
-    with open(HISTORY_FILE, "w") as f:
+    with open(_history_file(), "w") as f:
         json.dump(history[-MAX_HISTORY:], f, ensure_ascii=False)
 
 

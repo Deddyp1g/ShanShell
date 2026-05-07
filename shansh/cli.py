@@ -34,8 +34,8 @@ def _is_chinese_text(text: str) -> bool:
     return any("\u4e00" <= ch <= "\u9fff" for ch in text)
 
 
-def _build_suggest_result(buffer: str, cwd: str, use_llm: bool = True) -> dict:
-    ctx = collect_context(buffer, cwd)
+def _build_suggest_result(buffer: str, cwd: str, use_llm: bool = True, lightweight: bool = False) -> dict:
+    ctx = collect_context(buffer, cwd, lightweight=lightweight)
     trimmed = buffer.strip()
 
     if not trimmed:
@@ -211,7 +211,7 @@ def _cmd_suggest_shell(buffer: str, cwd: str):
 
 
 def _cmd_suggest_rules_shell(buffer: str, cwd: str):
-    result = _build_suggest_result(buffer, cwd, use_llm=False)
+    result = _build_suggest_result(buffer, cwd, use_llm=False, lightweight=True)
     top = result["top_candidates"]
     mode = result["mode"]
 

@@ -7,10 +7,21 @@ import subprocess
 from shansh.stats import get_recent_commands as _load_recent_commands
 
 
-def collect_context(buffer: str, cwd: str) -> dict:
-    cursor = len(buffer)
-
+def collect_context(buffer: str, cwd: str, lightweight: bool = False) -> dict:
     shell = os.environ.get("SHELL", os.environ.get("SHANSH_SHELL", "/bin/zsh"))
+
+    if lightweight:
+        return {
+            "buffer": buffer,
+            "cursor": len(buffer),
+            "cwd": cwd,
+            "shell": shell,
+            "os_info": {},
+            "files": [],
+            "project_types": [],
+            "git_info": {"is_repo": False},
+            "last_commands": [],
+        }
 
     os_info = _collect_os_info()
     files = _collect_files(cwd)
@@ -20,7 +31,7 @@ def collect_context(buffer: str, cwd: str) -> dict:
 
     return {
         "buffer": buffer,
-        "cursor": cursor,
+        "cursor": len(buffer),
         "cwd": cwd,
         "shell": shell,
         "os_info": os_info,

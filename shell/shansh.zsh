@@ -14,6 +14,7 @@ zmodload zsh/system 2>/dev/null
 
 # ============================== 全局变量 ==============================
 export SHANSH_ROOT="${SHANSH_ROOT:-/root/shansh-ai}"
+export SHANSH_PID="$$"
 SHANSH_LAST_REPLACEMENT=""
 SHANSH_LAST_EXPLANATION=""
 SHANSH_LAST_RISK="low"
@@ -50,6 +51,13 @@ _shansh_llm_cleanup() {
     [[ -p "$SHANSH_LLM_FIFO" ]] && rm -f "$SHANSH_LLM_FIFO"
     [[ -f "$SHANSH_LLM_RESULT_FILE" ]] && rm -f "$SHANSH_LLM_RESULT_FILE"
 }
+
+_shansh_exit_cleanup() {
+    _shansh_llm_cleanup
+    [[ -n "$SHANSH_PID" ]] && rm -f "${HOME}/.shansh/history_${SHANSH_PID}.json" 2>/dev/null
+}
+
+trap _shansh_exit_cleanup EXIT
 
 _shansh_llm_on_result() {
     local fd=$1 signal
