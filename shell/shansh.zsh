@@ -194,11 +194,6 @@ _shansh_check_color() {
     _shansh_color_supported=1
 }
 
-_shansh_color() {
-    [[ $_shansh_color_supported -eq 0 ]] && { echo -n "$1"; return; }
-    echo -n "$2$1${_shansh_ansi_reset}"
-}
-
 # ============================== UI 辅助函数 ==============================
 _shansh_source_label() {
     case "$1" in
@@ -213,59 +208,14 @@ _shansh_source_label() {
     esac
 }
 
-_shansh_render_colored_buffer() {
-    local buffer="$1"
-    local len=${#buffer}
-    local i j
-
-    if [[ $_shansh_color_supported -eq 0 ]]; then
-        echo -n "$buffer"
-        return
-    fi
-
-    local markers=""
-    for ((i=0; i<len; i++)); do markers+="."; done
-
-    for diag in "${_SHANSH_DIAGS[@]}"; do
-        local s="${diag%%:*}"
-        local rest="${diag#*:}"
-        local e="${rest%%:*}"
-        rest="${rest#*:}"
-        local sev="${rest%%:*}"
-        local m="R"
-        [[ "$sev" == "warning" ]] && m="Y"
-        [[ "$sev" == "info" ]] && m="B"
-        for ((j=s; j<e && j<len; j++)); do
-            markers="${markers:0:$j}${m}${markers:$((j+1))}"
-        done
-    done
-
-    local cur_style=""
-    for ((i=0; i<len; i++)); do
-        local m="${markers:$i:1}"
-        local style=""
-        [[ "$m" == "R" ]] && style="${_shansh_ansi_red}${_shansh_ansi_underline}"
-        [[ "$m" == "Y" ]] && style="${_shansh_ansi_yellow}${_shansh_ansi_underline}"
-        [[ "$m" == "B" ]] && style="${_shansh_ansi_blue}${_shansh_ansi_underline}"
-        if [[ "$cur_style" != "$style" ]]; then
-            [[ -n "$cur_style" ]] && echo -n "${_shansh_ansi_reset}"
-            [[ -n "$style" ]] && echo -n "$style"
-            cur_style="$style"
-        fi
-        echo -n "${buffer:$i:1}"
-    done
-    [[ -n "$cur_style" ]] && echo -n "${_shansh_ansi_reset}"
-}
-
 _shansh_build_suggest_line() {
     local replacement="$1" explanation="$2" source="$3" confidence="$4" risk="$5" count="$6"
-    local src_label conf_str risk_label suggest_line
+    local src_label conf_pct risk_label suggest_line
 
     src_label=$(_shansh_source_label "$source")
     if [[ -n "$confidence" && "$confidence" != "0.0" ]]; then
-        conf_str="$(printf '%.0f' "$(echo "$confidence * 100" | bc -l 2>/dev/null || echo 0)")%"
-    else
-        conf_str=""
+        _shansh_conf_int="${confidence#0.}"
+        conf_pct="${_shansh_conf_int}%"
     fi
 
     case "$risk" in
@@ -273,39 +223,49 @@ _shansh_build_suggest_line() {
         medium) risk_label=" MED RISK" ;;
     esac
 
-    if [[ -n "$src_label" ]]; then
-        suggest_line="[ShanShell] [${src_label}]"
-    else
-        suggest_line="[ShanShell]"
-    fi
-    [[ -n "$conf_str" ]] && suggest_line+=" ${conf_str}"
-    suggest_line+=" → ${replacement}"
+    local prefix="[ShanShell]"
+    [[ -n "$src_label" ]] && prefix+=" [${src_label}]"
+    [[ -n "$conf_pct" ]] && prefix+=" ${conf_pct}"
+
+    suggest_line="${prefix} → ${replacement}"
     [[ -n "$explanation" ]] && suggest_line+=" | ${explanation}"
-    if [[ ${count:-0} -gt 1 ]]; then
-        if [[ -n "$src_label" ]]; then
-            suggest_line="[ShanShell] [1/${count}] [${src_label}]"
-        else
-            suggest_line="[ShanShell] [1/${count}]"
-        fi
-        [[ -n "$conf_str" ]] && suggest_line+=" ${conf_str}"
-        suggest_line+=" → ${replacement}"
-        [[ -n "$explanation" ]] && suggest_line+=" | ${explanation}"
-    fi
+    [[ ${count:-0} -gt 1 ]] && suggest_line="[ShanShell] [1/${count}]${prefix#\[ShanShell\]} → ${replacement}"
+    [[ ${count:-0} -gt 1 && -n "$explanation" ]] && suggest_line+=" | ${explanation}"
     [[ -n "$risk_label" ]] && suggest_line+="${risk_label}"
 
     echo "$suggest_line"
 }
-_shansh_emit_diagnostics() {
+_shansh_build_diag_line() {
     local buffer="$1"
-    if [[ ${#_SHANSH_DIAGS[@]} -eq 0 ]]; then
-        return
-    fi
-    if [[ $_shansh_color_supported -eq 1 ]]; then
-        echo ""
-        _shansh_render_colored_buffer "$buffer"
-        echo ""
-    fi
-    echo "$(_shansh_build_diag_line "$buffer")"
+    local max_end=0
+    local diag line
+    for diag in "${_SHANSH_DIAGS[@]}"; do
+        local end="${diag#*:}"
+        end="${end%%:*}"
+        [[ $end -gt $max_end ]] && max_end=$end
+    done
+    [[ $max_end -lt ${#buffer} ]] && max_end=${#buffer}
+
+    local markers=""
+    local i
+    for ((i=0; i<max_end; i++)); do
+        markers+=" "
+    done
+
+    for diag in "${_SHANSH_DIAGS[@]}"; do
+        local s="${diag%%:*}"
+        local rest="${diag#*:}"
+        local e="${rest%%:*}"
+        rest="${rest#*:}"
+        local sev="${rest%%:*}"
+        local ch="^"
+        [[ "$sev" == "info" ]] && ch="~"
+        local j
+        for ((j=s; j<e && j<${#buffer}; j++)); do
+            markers="${markers:0:$j}${ch}${markers:$((j+1))}"
+        done
+    done
+    echo " ${markers}"
 }
 
 shansh-suggest() {
@@ -356,8 +316,11 @@ shansh-suggest() {
     local suggest_line
     suggest_line=$(_shansh_build_suggest_line "$replacement" "$explanation" "$source" "$confidence" "$risk" "$_SHANSH_CANDIDATE_COUNT")
 
-    _shansh_emit_diagnostics "$buffer"
-    zle -M "$suggest_line"
+    if [[ -n "$SHANSH_LAST_DIAG_LINE" ]]; then
+        zle -M "${suggest_line}"$'\n'"${SHANSH_LAST_DIAG_LINE}"
+    else
+        zle -M "$suggest_line"
+    fi
 }
 
 # ============================== 接受建议 ==============================
